@@ -67,10 +67,12 @@
       <input id="width" type="number" value="10" step="0.1">
       <label for="tankHeight">Hauteur totale réservoir (m)</label>
       <input id="tankHeight" type="number" value="6" step="0.1">
+      <label for="blockCoefficient">Coefficient de bloc (Cb)</label>
+      <input id="blockCoefficient" type="number" value="0.85" step="0.01" min="0.1" max="1.5">
     </div>
 
-    <label for="compartments">Nombre de compartiments</label>
-    <input id="compartments" type="number" value="1" min="1" step="1">
+    <label for="numberOfTanks">Nombre total de réservoirs</label>
+    <input id="numberOfTanks" type="number" value="12" min="1" step="1">
 
     <label for="targetHeight">Hauteur de remplissage cible (m)</label>
     <input id="targetHeight" type="number" value="1.0" step="0.01">
@@ -83,13 +85,20 @@
     </div>
 
     <div class="output">
-      <h3>Capacité totale du réservoir</h3>
+      <h3>Capacité totale des réservoirs</h3>
       <div id="capacityArea"><p>—</p></div>
+    </div>
+
+    <div class="output">
+      <h3>Capacité par réservoir</h3>
+      <div id="tankCapacityArea"><p>—</p></div>
     </div>
   </div>
 
 <script>
 // Données réalistes par classe avec facteur de remplissage utile
+let totalVesselGeometricVolume = 0;
+
 const classes = {
   petit: {tpl:[10000,24999], min:{L:30,W:8,H:10}, max:{L:70,W:14,H:14}, fillFactor:0.92},
   pratique: {tpl:[28000,40000], min:{L:80,W:16,H:14}, max:{L:120,W:26,H:20}, fillFactor:0.91},
@@ -121,36 +130,69 @@ const estimateBtn=document.getElementById('estimateBtn');
 const customInputs=document.getElementById('customInputs');
 const resultArea=document.getElementById('resultArea');
 const capacityArea=document.getElementById('capacityArea');
+const tankCapacityArea=document.getElementById('tankCapacityArea');
 const productSel=document.getElementById('product');
+const numberOfTanksInput = document.getElementById('numberOfTanks');
+
+numberOfTanksInput.addEventListener('change', updateSingleTankDimensions);
 
 function showCustom(show){ customInputs.style.display = show ? 'block' : 'none'; }
 
-function applyPreset(){
-  const key = presetSel.value;
-  if(key === 'custom') { showCustom(true); return; }
-  showCustom(true);
-  const c = classes[key];
-  const t = 0.5;
-  document.getElementById('length').value = Math.round(lerp(c.min.L, c.max.L, t)*10)/10;
-  document.getElementById('width').value = Math.round(lerp(c.min.W, c.max.W, t)*10)/10;
-  document.getElementById('tankHeight').value = Math.round(lerp(c.min.H, c.max.H, t)*10)/10;
+function updateSingleTankDimensions() {
+  if (totalVesselGeometricVolume <= 0) {
+    // If there's no total volume, clear the dimension fields
+    document.getElementById('length').value = 0;
+    document.getElementById('width').value = 0;
+    document.getElementById('tankHeight').value = 0;
+    return;
+  }
+
+  const nTanks = parseInt(document.getElementById('numberOfTanks').value) || 1;
+  const volumePerTank = totalVesselGeometricVolume / nTanks;
+
+  // Estimate dimensions using a 4:2:1 ratio for L:W:H
+  // V = (4x) * (2x) * (x) = 8x^3  => x = cbrt(V/8)
+  const x = Math.cbrt(volumePerTank / 8);
+  const L = 4 * x;
+  const W = 2 * x;
+  const H = 1 * x;
+
+  document.getElementById('length').value = round(L, 1);
+  document.getElementById('width').value = round(W, 1);
+  document.getElementById('tankHeight').value = round(H, 1);
 }
 
-presetSel.addEventListener('change',applyPreset);
+function applyPreset(){
+  const key = presetSel.value;
+  if(key === 'custom') {
+    showCustom(true);
+    return;
+  }
+  showCustom(true);
+  const c = classes[key];
+  const t = 0.5; // mid-range for preset
+  const L = lerp(c.min.L, c.max.L, t);
+  const W = lerp(c.min.W, c.max.W, t);
+  const H = lerp(c.min.H, c.max.H, t);
+  totalVesselGeometricVolume = L * W * H;
+  updateSingleTankDimensions();
+}
+
+presetSel.addEventListener('change', applyPreset);
 applyPreset();
 
-estimateBtn.addEventListener('click', ()=>{
+estimateBtn.addEventListener('click', () => {
   const key = presetSel.value;
   const tplVal = parseFloat(tplInput.value);
-  if(isNaN(tplVal) || tplVal<=0){ alert('Entrer un TPL/DWT positif'); return; }
+  if(isNaN(tplVal) || tplVal <= 0){ alert('Entrer un TPL/DWT positif'); return; }
+
   let clsKey = key;
   if(key === 'custom'){
     for(const k of Object.keys(classes)){
-      const range = classes[k].tpl;
-      if(tplVal >= range[0] && tplVal <= range[1]){ clsKey = k; break; }
+      if(tplVal >= classes[k].tpl[0] && tplVal <= classes[k].tpl[1]){ clsKey = k; break; }
     }
     if(clsKey === 'custom'){
-      let best=null; let bestDist=1e18;
+      let best=null, bestDist=1e18;
       for(const k of Object.keys(classes)){
         const [mn,mx] = classes[k].tpl;
         const mid = (mn+mx)/2;
@@ -160,12 +202,16 @@ estimateBtn.addEventListener('click', ()=>{
       clsKey = best;
     }
   }
+
   const c = classes[clsKey];
-  const t = clamp( (tplVal - c.tpl[0]) / (c.tpl[1] - c.tpl[0]), 0, 1 );
-  document.getElementById('length').value = Math.round(lerp(c.min.L, c.max.L, t)*10)/10;
-  document.getElementById('width').value = Math.round(lerp(c.min.W, c.max.W, t)*10)/10;
-  document.getElementById('tankHeight').value = Math.round(lerp(c.min.H, c.max.H, t)*10)/10;
-  alert('Dimensions estimées appliquées (classe: ' + clsKey + ', TPL=' + tplVal + ').');
+  const t = clamp((tplVal - c.tpl[0]) / (c.tpl[1] - c.tpl[0]), 0, 1);
+  const L = lerp(c.min.L, c.max.L, t);
+  const W = lerp(c.min.W, c.max.W, t);
+  const H = lerp(c.min.H, c.max.H, t);
+  totalVesselGeometricVolume = L * W * H;
+
+  alert('Volume total du navire estimé. Modifiez le nombre de réservoirs pour mettre à jour les dimensions estimées par réservoir.');
+  updateSingleTankDimensions();
 });
 
 function round(n,d=3){return Math.round(n*Math.pow(10,d))/Math.pow(10,d)}
@@ -174,32 +220,44 @@ function calc(){
   const L=parseFloat(document.getElementById('length').value);
   const W=parseFloat(document.getElementById('width').value);
   const H=parseFloat(document.getElementById('tankHeight').value);
+  const Cb=parseFloat(document.getElementById('blockCoefficient').value);
   const hTarget=parseFloat(document.getElementById('targetHeight').value);
-  const nCompart=parseInt(document.getElementById('compartments').value)||1;
+  const nTanks=parseInt(document.getElementById('numberOfTanks').value)||1;
   const product=productSel.value;
   const density=DENSITIES[product];
 
-  if([L,W,H,hTarget].some(x=>isNaN(x)||x<=0)){
-    resultArea.innerHTML='<p style="color:#f88">Veuillez entrer des valeurs positives.</p>';
+  if([L,W,H,Cb,hTarget,nTanks].some(x=>isNaN(x)||x<=0)){
+    resultArea.innerHTML='<p style="color:#f88">Veuillez entrer des valeurs valides. Assurez-vous que les dimensions ont été estimées ou entrées manuellement.</p>';
     return;
   }
 
-  const fillH=Math.min(hTarget,H);
-  const volume=L*W*fillH*nCompart;
-  const capacity=L*W*H*nCompart;
+  const fillH = Math.min(hTarget, H);
+
+  // Per-tank calculations (based on inputs)
+  const capacityPerTank = L * W * H * Cb;
+  const volumePerTank = L * W * fillH * Cb;
+
+  // Total calculations
+  const totalCapacity = capacityPerTank * nTanks;
+  const totalVolume = volumePerTank * nTanks;
 
   const cls = classes[presetSel.value];
   const fillFactor = cls ? cls.fillFactor : 0.90;
 
-  const usefulVolume = volume * fillFactor;
-  const usefulCapacity = capacity * fillFactor;
+  // Useful volumes
+  const usefulCapacityPerTank = capacityPerTank * fillFactor;
+  const usefulTotalCapacity = totalCapacity * fillFactor;
+  const usefulTotalVolume = totalVolume * fillFactor;
 
-  const pct=capacity>0? volume/capacity*100 : 0;
-  const massTonnes = usefulVolume * density;
+  const pct = usefulTotalCapacity > 0 ? usefulTotalVolume / usefulTotalCapacity * 100 : 0;
+  const totalMassTonnes = usefulTotalVolume * density;
 
-  resultArea.innerHTML=`<pre>${round(usefulVolume,3)} m³ utiles  —  ${Math.round(usefulVolume*1000)} L</pre><p>${round(pct,2)}% de la capacité totale géométrique</p><p>≈ ${round(massTonnes,2)} tonnes de ${product}</p>`;
+  // Update Outputs
+  resultArea.innerHTML=`<p>Volume rempli :</p><pre>${round(usefulTotalVolume,2)} m³ / ${round(usefulTotalCapacity,2)} m³</pre><p>${round(pct,1)}% de la capacité utile totale</p><p>≈ ${round(totalMassTonnes,2)} tonnes de ${product}</p>`;
 
-  capacityArea.innerHTML=`<pre>${round(usefulCapacity,3)} m³ utiles (corrigé)  —  ${Math.round(usefulCapacity*1000)} L</pre>`;
+  capacityArea.innerHTML=`<p>Capacité totale (tous les réservoirs) :</p><pre>${round(usefulTotalCapacity,2)} m³ utiles</pre>`;
+
+  tankCapacityArea.innerHTML=`<p>Capacité par réservoir :</p><pre>${round(usefulCapacityPerTank,2)} m³ utiles</pre>`;
 }
 
 document.getElementById('calc').addEventListener('click',calc);
