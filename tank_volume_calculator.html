@@ -139,27 +139,25 @@ numberOfTanksInput.addEventListener('change', updateSingleTankDimensions);
 function showCustom(show){ customInputs.style.display = show ? 'block' : 'none'; }
 
 function updateSingleTankDimensions() {
-  if (totalVesselGeometricVolume <= 0) {
-    // If there's no total volume, clear the dimension fields
+  const constantHeight = parseFloat(document.getElementById('tankHeight').value);
+  if (totalVesselGeometricVolume <= 0 || constantHeight <= 0) {
     document.getElementById('length').value = 0;
     document.getElementById('width').value = 0;
-    document.getElementById('tankHeight').value = 0;
     return;
   }
 
   const nTanks = parseInt(document.getElementById('numberOfTanks').value) || 1;
-  const volumePerTank = totalVesselGeometricVolume / nTanks;
+  const totalArea = totalVesselGeometricVolume / constantHeight;
+  const areaPerTank = totalArea / nTanks;
 
-  // Estimate dimensions using a 4:2:1 ratio for L:W:H
-  // V = (4x) * (2x) * (x) = 8x^3  => x = cbrt(V/8)
-  const x = Math.cbrt(volumePerTank / 8);
-  const L = 4 * x;
-  const W = 2 * x;
-  const H = 1 * x;
+  // Estimate L and W from area using a 2:1 ratio
+  // Area = L * W = (2y) * y = 2y^2 => y = sqrt(Area/2)
+  const y = Math.sqrt(areaPerTank / 2);
+  const L = 2 * y;
+  const W = 1 * y;
 
   document.getElementById('length').value = round(L, 1);
   document.getElementById('width').value = round(W, 1);
-  document.getElementById('tankHeight').value = round(H, 1);
 }
 
 function applyPreset(){
@@ -174,7 +172,9 @@ function applyPreset(){
   const L = lerp(c.min.L, c.max.L, t);
   const W = lerp(c.min.W, c.max.W, t);
   const H = lerp(c.min.H, c.max.H, t);
+
   totalVesselGeometricVolume = L * W * H;
+  document.getElementById('tankHeight').value = round(H, 1); // Set constant height
   updateSingleTankDimensions();
 }
 
@@ -208,9 +208,11 @@ estimateBtn.addEventListener('click', () => {
   const L = lerp(c.min.L, c.max.L, t);
   const W = lerp(c.min.W, c.max.W, t);
   const H = lerp(c.min.H, c.max.H, t);
-  totalVesselGeometricVolume = L * W * H;
 
-  alert('Volume total du navire estimé. Modifiez le nombre de réservoirs pour mettre à jour les dimensions estimées par réservoir.');
+  totalVesselGeometricVolume = L * W * H;
+  document.getElementById('tankHeight').value = round(H, 1); // Set constant height
+
+  alert('Volume total du navire estimé et hauteur de réservoir fixée. Modifiez le nombre de réservoirs pour mettre à jour L et W.');
   updateSingleTankDimensions();
 });
 
