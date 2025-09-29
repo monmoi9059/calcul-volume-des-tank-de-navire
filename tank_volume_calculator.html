@@ -3,206 +3,201 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Calcul Volume Réservoir Navires</title>
+  <title>Calculateur de Volume (Bidirectionnel)</title>
   <style>
     body{font-family:Inter,Arial,sans-serif;margin:0;background:#0d1b2a;color:#e6eef6;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{background:rgba(255,255,255,0.05);padding:20px;border-radius:12px;max-width:1000px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
-    h1{margin:0 0 12px;font-size:22px}
+    .card{background:rgba(255,255,255,0.05);padding:20px;border-radius:12px;max-width:900px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    h1,h2{margin:0 0 12px;font-size:22px;border-bottom:1px solid #334155;padding-bottom:8px;}
+    h2{font-size:18px;margin-top:20px;}
     label{display:block;margin-bottom:6px;font-size:14px}
-    select,input,button{width:100%;padding:8px 10px;margin-bottom:10px;border-radius:8px;border:none;font-size:14px}
+    select,input,button{width:100%;padding:10px 12px;margin-bottom:12px;border-radius:8px;border:none;font-size:14px;box-sizing:border-box;}
     input,select{background:#1b263b;color:#fff}
-    button{background:#06b6d4;color:#042;font-weight:600;cursor:pointer}
-    .row{display:flex;gap:12px}
-    .col{flex:1}
-    .output{background:#1b263b;padding:12px;border-radius:10px;margin-top:10px}
-    pre{background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;overflow:auto}
-    .note{font-size:13px;color:#bcd}
+    input#tankHeight {background:#374151;}
+    button{background:#06b6d4;color:#042;font-weight:600;cursor:pointer;transition:background-color 0.2s ease;}
+    button:hover{background:#164e63;color:#e0f2f1;}
+    .row{display:flex;gap:12px;flex-wrap:wrap;}
+    .col{flex:1;min-width:150px;}
+    .output{background:#1b263b;padding:12px;border-radius:10px;margin-top:10px;overflow-x:auto;}
+    .note{font-size:13px;color:#bcd;background:rgba(0,0,0,0.2);padding:10px;border-radius:8px;margin-bottom:16px;}
+    
+    .mode-selector { background:rgba(0,0,0,0.2); border-radius:8px; padding:10px; margin-bottom:16px; display:flex; justify-content:center; gap:20px; }
+    .mode-selector label { cursor:pointer; display:flex; align-items:center; gap:8px; }
+
+    #tankInputsContainer {display:grid;grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));gap:10px;margin-top:10px;}
+    .tank-input-group label {font-size:12px;}
+    .tank-input-group input {padding:8px;font-size:13px;text-align:center;}
+
+    #stowagePlanViz {display:grid;grid-template-columns:repeat(auto-fill, minmax(80px, 1fr));gap:12px;padding:10px;min-height:150px;}
+    .stowage-tank {background:#334155;border-radius:4px;height:120px;position:relative;display:flex;flex-direction:column-reverse;box-shadow:inset 0 0 10px rgba(0,0,0,0.5);}
+    .stowage-liquid {background:#0ea5e9;border-radius:inherit;width:100%;transition:height 0.5s ease-out;}
+    .stowage-label {position:absolute;top:5px;left:0;right:0;text-align:center;font-size:11px;color:#fff;font-weight:bold;text-shadow:1px 1px 2px #000;}
+    .stowage-info {position:absolute;bottom:5px;left:0;right:0;text-align:center;font-size:10px;color:#fff;}
+
+    table {width:100%;border-collapse:collapse;margin-top:10px;}
+    th, td {padding:8px 12px;text-align:left;border-bottom:1px solid #334155;}
+    th {background:#1e293b;font-size:14px;}
+    td {font-size:13px;}
+    tfoot tr {font-weight:bold;}
+    tfoot td {background-color:rgba(6,182,212,0.1);}
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Calculateur Volume — Navires (estimation par TPL/DWT)</h1>
-    <p class="note">Choisis une classe de navire et un produit. Tu peux utiliser les dimensions moyennes proposées ou entrer un TPL/DWT pour estimer automatiquement des dimensions réalistes à l'intérieur de la plage de la classe.</p>
+    <h1>Calculateur de Volume (Bidirectionnel)</h1>
+    <p class="note"><strong>Mode d'emploi :</strong><br>1. Estimez la capacité du navire à partir du TPL/DWT.<br>2. Choisissez un mode de calcul: entrez une hauteur pour obtenir un volume, ou entrez un volume pour obtenir une hauteur.<br>3. Remplissez les champs pour chaque réservoir et cliquez sur "Calculer".</p>
 
-    <label for="product">Produit transporté</label>
-    <select id="product">
-      <option value="diesel">Diesel (densité ≈ 0.84 t/m³)</option>
-      <option value="essence">Essence (densité ≈ 0.74 t/m³)</option>
-    </select>
-
-    <label for="preset">Choisir un type de navire</label>
-    <select id="preset">
-      <option value="custom">Dimensions personnalisées</option>
-      <option value="petit">Petits utilitaires (10 000 – 24 999 TPL)</option>
-      <option value="pratique">Taille pratique (28 000 – 40 000 DWT)</option>
-      <option value="maniable">Grande maniabilité (35 000 – 39 999 TPL)</option>
-      <option value="handymax">Handymax (40 000 – 50 000 TPL)</option>
-      <option value="supramax">Supramax (50 000 – 60 000 TPL)</option>
-      <option value="panamax">Panamax (60 000 – 80 000 TPL)</option>
-      <option value="postpanamax">Post-Panamax (79 000 – 99 999 TPL)</option>
-      <option value="aframax">Aframax (75 000 – 115 000 TPL)</option>
-      <option value="suezmax">Suezmax (~150 000 TPL)</option>
-      <option value="malaccamax">Malaccamax (280 000 – 300 000 TPL)</option>
-      <option value="seawaymax">Seawaymax (10 000 – 60 000 TPL)</option>
-      <option value="minicape">Mini Capesize (100 000 – 129 999 TPL)</option>
-      <option value="capesize">Capesize (130 000 – 199 999 TPL)</option>
-      <option value="largecape">Large Capesize (200 000+ TPL)</option>
-    </select>
-
+    <h2>Étape 1: Estimer la Capacité du Navire</h2>
     <div class="row">
-      <div class="col">
-        <label for="tplInput">Entrer un TPL/DWT (optionnel)</label>
-        <input id="tplInput" type="number" placeholder="ex.: 45000" />
-      </div>
-      <div class="col">
-        <label for="estimateBtn">Générer dimensions</label>
-        <button id="estimateBtn">Estimer à partir du TPL</button>
-      </div>
+        <div class="col"><label for="product">Produit transporté</label><select id="product"><option value="diesel">Diesel (densité ≈ 0.84 t/m³)</option><option value="essence">Essence (densité ≈ 0.74 t/m³)</option></select></div>
+        <div class="col"><label for="tplInput">Entrer TPL/DWT du navire</label><input id="tplInput" type="number" placeholder="ex: 15000" /></div>
+        <div class="col"><label>&nbsp;</label><button id="estimateBtn">Estimer Capacité & Hauteur</button></div>
+    </div>
+    
+    <h2>Étape 2: Configurer le Calcul</h2>
+    <div class="row">
+        <div class="col"><label for="tankHeight">Hauteur des réservoirs (m) [Auto]</label><input id="tankHeight" type="number" step="0.1"></div>
+        <div class="col"><label for="numberOfTanks">Nombre de réservoirs</label><input id="numberOfTanks" type="number" value="14" min="1" step="1"></div>
+        <div class="col"><label for="tankCoefficient">Coefficient de Forme</label><input id="tankCoefficient" type="number" value="0.98" min="0.8" max="1.0" step="0.01"></div>
+    </div>
+    
+    <div class="mode-selector">
+        <label><input type="radio" id="modeHeight" name="calcMode" value="height" checked> Calculer le Volume par la Hauteur</label>
+        <label><input type="radio" id="modeVolume" name="calcMode" value="volume"> Calculer la Hauteur par le Volume</label>
     </div>
 
-    <div id="customInputs">
-      <label for="length">Longueur (m)</label>
-      <input id="length" type="number" value="20" step="0.1">
-      <label for="width">Largeur (m)</label>
-      <input id="width" type="number" value="10" step="0.1">
-      <label for="tankHeight">Hauteur totale réservoir (m)</label>
-      <input id="tankHeight" type="number" value="6" step="0.1">
-    </div>
+    <div id="tankInputsContainer"></div>
+    <button id="calc" style="margin-top:16px; background-color: #16a34a;">Calculer et Mettre à Jour le Plan</button>
 
-    <label for="compartments">Nombre de compartiments</label>
-    <input id="compartments" type="number" value="1" min="1" step="1">
-
-    <label for="targetHeight">Hauteur de remplissage cible (m)</label>
-    <input id="targetHeight" type="number" value="1.0" step="0.01">
-
-    <button id="calc">Calculer</button>
-
-    <div class="output">
-      <h3>Résultat</h3>
-      <div id="resultArea"><p>Pas encore de calcul.</p></div>
-    </div>
-
-    <div class="output">
-      <h3>Capacité totale du réservoir</h3>
-      <div id="capacityArea"><p>—</p></div>
-    </div>
+    <h2>Étape 3: Résultats et Plan de Chargement</h2>
+    <div class="output"><h3>Plan de Chargement Visuel</h3><div id="stowagePlanViz"><p>Le plan apparaîtra ici.</p></div></div>
+    <div class="output"><h3>Tableau des Quantités</h3><div id="resultArea"><p>Les résultats détaillés apparaîtront ici.</p></div></div>
   </div>
 
 <script>
-// Données réalistes par classe avec facteur de remplissage utile
-const classes = {
-  petit: {tpl:[10000,24999], min:{L:30,W:8,H:10}, max:{L:70,W:14,H:14}, fillFactor:0.92},
-  pratique: {tpl:[28000,40000], min:{L:80,W:16,H:14}, max:{L:120,W:26,H:20}, fillFactor:0.91},
-  maniable: {tpl:[35000,39999], min:{L:90,W:18,H:15}, max:{L:130,W:28,H:20}, fillFactor:0.91},
-  handymax: {tpl:[40000,50000], min:{L:120,W:22,H:16}, max:{L:160,W:30,H:22}, fillFactor:0.90},
-  supramax: {tpl:[50000,60000], min:{L:140,W:24,H:18}, max:{L:190,W:34,H:24}, fillFactor:0.90},
-  panamax: {tpl:[60000,80000], min:{L:180,W:28,H:18}, max:{L:230,W:36,H:26}, fillFactor:0.89},
-  postpanamax: {tpl:[79000,99999], min:{L:200,W:32,H:20}, max:{L:260,W:42,H:28}, fillFactor:0.89},
-  aframax: {tpl:[75000,115000], min:{L:190,W:30,H:20}, max:{L:260,W:44,H:28}, fillFactor:0.88},
-  suezmax: {tpl:[140000,160000], min:{L:240,W:38,H:24}, max:{L:300,W:50,H:32}, fillFactor:0.87},
-  malaccamax: {tpl:[280000,300000], min:{L:300,W:48,H:28}, max:{L:360,W:64,H:36}, fillFactor:0.86},
-  seawaymax: {tpl:[10000,60000], min:{L:100,W:18,H:14}, max:{L:225,W:24,H:20}, fillFactor:0.90},
-  minicape: {tpl:[100000,129999], min:{L:230,W:40,H:22}, max:{L:280,W:48,H:28}, fillFactor:0.87},
-  capesize: {tpl:[130000,199999], min:{L:250,W:45,H:24}, max:{L:320,W:56,H:34}, fillFactor:0.86},
-  largecape: {tpl:[200000,350000], min:{L:300,W:50,H:26}, max:{L:380,W:68,H:38}, fillFactor:0.85},
+let estimatedTotalGeometricVolume = 0;
+const DENSITIES = { diesel: 0.84, essence: 0.74 };
+const VESSEL_DATA_BY_DWT = {
+    coastal:   { dwt: [5000, 19999],   height: 10 }, handysize: { dwt: [20000, 34999],  height: 14 },
+    handymax:  { dwt: [35000, 59999],  height: 16 }, panamax:   { dwt: [60000, 79999],  height: 20 },
+    aframax:   { dwt: [80000, 119999], height: 22 }, suezmax:   { dwt: [120000, 199999], height: 25 },
+    vlcc:      { dwt: [200000, 319999], height: 28 }, ulcc:      { dwt: [320000, 550000], height: 35 }
 };
 
-const DENSITIES = {
-  diesel: 0.84,
-  essence: 0.74
-};
+const estimateBtn = document.getElementById('estimateBtn'), calcBtn = document.getElementById('calc'), tplInput = document.getElementById('tplInput'), productSel = document.getElementById('product'), numberOfTanksInput = document.getElementById('numberOfTanks'), tankHeightInput = document.getElementById('tankHeight'), tankCoefficientInput = document.getElementById('tankCoefficient'), tankInputsContainer = document.getElementById('tankInputsContainer'), resultArea = document.getElementById('resultArea'), stowagePlanViz = document.getElementById('stowagePlanViz');
+const modeRadios = document.querySelectorAll('input[name="calcMode"]');
 
-function lerp(a,b,t){return a + (b-a)*t}
-function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function round(n, d = 2) { return Math.round(n * Math.pow(10, d)) / Math.pow(10, d); }
 
-const presetSel=document.getElementById('preset');
-const tplInput=document.getElementById('tplInput');
-const estimateBtn=document.getElementById('estimateBtn');
-const customInputs=document.getElementById('customInputs');
-const resultArea=document.getElementById('resultArea');
-const capacityArea=document.getElementById('capacityArea');
-const productSel=document.getElementById('product');
-
-function showCustom(show){ customInputs.style.display = show ? 'block' : 'none'; }
-
-function applyPreset(){
-  const key = presetSel.value;
-  if(key === 'custom') { showCustom(true); return; }
-  showCustom(true);
-  const c = classes[key];
-  const t = 0.5;
-  document.getElementById('length').value = Math.round(lerp(c.min.L, c.max.L, t)*10)/10;
-  document.getElementById('width').value = Math.round(lerp(c.min.W, c.max.W, t)*10)/10;
-  document.getElementById('tankHeight').value = Math.round(lerp(c.min.H, c.max.H, t)*10)/10;
+function getTankNames(nTanks) {
+    const names = [], portTanks = Math.ceil(nTanks / 2), starboardTanks = Math.floor(nTanks / 2);
+    for (let i = 1; i <= portTanks; i++) names.push(`${i}P`);
+    for (let i = 1; i <= starboardTanks; i++) names.push(`${i}T`);
+    return names;
 }
 
-presetSel.addEventListener('change',applyPreset);
-applyPreset();
+function generateTankInputs() {
+    tankInputsContainer.innerHTML = '';
+    const nTanks = parseInt(numberOfTanksInput.value) || 1;
+    const tankNames = getTankNames(nTanks);
+    const isHeightMode = document.getElementById('modeHeight').checked;
+    const labelUnit = isHeightMode ? '(m)' : '(m³)';
+    const defaultVal = isHeightMode ? 1 : 100;
+    const stepVal = isHeightMode ? 0.1 : 10;
 
-estimateBtn.addEventListener('click', ()=>{
-  const key = presetSel.value;
-  const tplVal = parseFloat(tplInput.value);
-  if(isNaN(tplVal) || tplVal<=0){ alert('Entrer un TPL/DWT positif'); return; }
-  let clsKey = key;
-  if(key === 'custom'){
-    for(const k of Object.keys(classes)){
-      const range = classes[k].tpl;
-      if(tplVal >= range[0] && tplVal <= range[1]){ clsKey = k; break; }
-    }
-    if(clsKey === 'custom'){
-      let best=null; let bestDist=1e18;
-      for(const k of Object.keys(classes)){
-        const [mn,mx] = classes[k].tpl;
-        const mid = (mn+mx)/2;
-        const d = Math.abs(tplVal - mid);
-        if(d < bestDist){ bestDist = d; best = k; }
-      }
-      clsKey = best;
-    }
-  }
-  const c = classes[clsKey];
-  const t = clamp( (tplVal - c.tpl[0]) / (c.tpl[1] - c.tpl[0]), 0, 1 );
-  document.getElementById('length').value = Math.round(lerp(c.min.L, c.max.L, t)*10)/10;
-  document.getElementById('width').value = Math.round(lerp(c.min.W, c.max.W, t)*10)/10;
-  document.getElementById('tankHeight').value = Math.round(lerp(c.min.H, c.max.H, t)*10)/10;
-  alert('Dimensions estimées appliquées (classe: ' + clsKey + ', TPL=' + tplVal + ').');
+    tankNames.forEach((name, index) => {
+        const group = document.createElement('div');
+        group.className = 'tank-input-group';
+        group.innerHTML = `<label for="tank_input_${index}">Réservoir ${name} ${labelUnit}</label><input type="number" id="tank_input_${index}" class="tank-fill-input" value="${defaultVal}" step="${stepVal}" min="0">`;
+        tankInputsContainer.appendChild(group);
+    });
+}
+
+estimateBtn.addEventListener('click', () => {
+    const tplVal = parseFloat(tplInput.value);
+    if (isNaN(tplVal) || tplVal <= 0) return alert('Veuillez entrer une valeur de TPL/DWT positive.');
+    
+    let estimatedHeight = 14; 
+    for (const key in VESSEL_DATA_BY_DWT) { const data = VESSEL_DATA_BY_DWT[key]; if (tplVal >= data.dwt[0] && tplVal <= data.dwt[1]) { estimatedHeight = data.height; break; }}
+    tankHeightInput.value = estimatedHeight;
+
+    const density = DENSITIES[productSel.value], cargoWeight = tplVal * 0.95, totalUsableVolume = cargoWeight / density;
+    estimatedTotalGeometricVolume = totalUsableVolume / 0.98;
+    
+    alert(`Capacité estimée: ${round(totalUsableVolume)} m³ (utile).\nLa hauteur des réservoirs a été ajustée à ${estimatedHeight} m.`);
+    resultArea.innerHTML = `<p>Entrez les valeurs de remplissage et cliquez sur Calculer.</p>`;
+    stowagePlanViz.innerHTML = `<p>En attente du calcul...</p>`;
 });
 
-function round(n,d=3){return Math.round(n*Math.pow(10,d))/Math.pow(10,d)}
+calcBtn.addEventListener('click', () => {
+    if (estimatedTotalGeometricVolume <= 0) return alert('Veuillez d\'abord estimer la capacité totale.');
 
-function calc(){
-  const L=parseFloat(document.getElementById('length').value);
-  const W=parseFloat(document.getElementById('width').value);
-  const H=parseFloat(document.getElementById('tankHeight').value);
-  const hTarget=parseFloat(document.getElementById('targetHeight').value);
-  const nCompart=parseInt(document.getElementById('compartments').value)||1;
-  const product=productSel.value;
-  const density=DENSITIES[product];
+    const nTanks = parseInt(numberOfTanksInput.value) || 1, H = parseFloat(tankHeightInput.value), tankCoeff = parseFloat(tankCoefficientInput.value), density = DENSITIES[productSel.value];
+    const tankNames = getTankNames(nTanks), tankFillInputs = document.querySelectorAll('.tank-fill-input'), isHeightMode = document.getElementById('modeHeight').checked;
+    if (isNaN(H) || H <= 0 || isNaN(tankCoeff)) return alert('Hauteur totale et coefficient invalides.');
+    
+    let results = [], geometricVolumePerTank = estimatedTotalGeometricVolume / nTanks, surfaceAreaPerTank = geometricVolumePerTank / H;
 
-  if([L,W,H,hTarget].some(x=>isNaN(x)||x<=0)){
-    resultArea.innerHTML='<p style="color:#f88">Veuillez entrer des valeurs positives.</p>';
-    return;
-  }
+    for (let i = 0; i < tankFillInputs.length; i++) {
+        const inputValue = parseFloat(tankFillInputs[i].value);
+        let filledVolume = 0, calculatedHeight = 0;
 
-  const fillH=Math.min(hTarget,H);
-  const volume=L*W*fillH*nCompart;
-  const capacity=L*W*H*nCompart;
+        if (isHeightMode) {
+            calculatedHeight = inputValue;
+            if (calculatedHeight > H) return alert(`La hauteur pour le réservoir ${tankNames[i]} ne peut dépasser ${H} m.`);
+            filledVolume = surfaceAreaPerTank * calculatedHeight * tankCoeff;
+        } else {
+            filledVolume = inputValue;
+            const maxVol = surfaceAreaPerTank * H * tankCoeff;
+            if(filledVolume > maxVol) {
+                alert(`Le volume pour le réservoir ${tankNames[i]} dépasse sa capacité max (${round(maxVol)} m³). Il sera considéré comme plein.`);
+                filledVolume = maxVol;
+            }
+            calculatedHeight = filledVolume / (surfaceAreaPerTank * tankCoeff);
+        }
+        
+        results.push({
+            tankName: tankNames[i], volume: filledVolume,
+            height: calculatedHeight, mass: filledVolume * density,
+            fillPct: (calculatedHeight / H) * 100
+        });
+    }
+    updateResultsTable(results, isHeightMode);
+    updateStowageViz(results);
+});
 
-  const cls = classes[presetSel.value];
-  const fillFactor = cls ? cls.fillFactor : 0.90;
+function updateResultsTable(results, isHeightMode) {
+    let totalVolume = 0, totalMass = 0;
+    const header_H_or_V = isHeightMode ? 'Volume (m³)' : 'Hauteur (m)';
+    let tableHTML = `<table><thead><tr><th>Réservoir</th><th>${header_H_or_V}</th><th>% Rempli</th><th>Poids (tonnes)</th></tr></thead><tbody>`;
 
-  const usefulVolume = volume * fillFactor;
-  const usefulCapacity = capacity * fillFactor;
-
-  const pct=capacity>0? volume/capacity*100 : 0;
-  const massTonnes = usefulVolume * density;
-
-  resultArea.innerHTML=`<pre>${round(usefulVolume,3)} m³ utiles  —  ${Math.round(usefulVolume*1000)} L</pre><p>${round(pct,2)}% de la capacité totale géométrique</p><p>≈ ${round(massTonnes,2)} tonnes de ${product}</p>`;
-
-  capacityArea.innerHTML=`<pre>${round(usefulCapacity,3)} m³ utiles (corrigé)  —  ${Math.round(usefulCapacity*1000)} L</pre>`;
+    results.forEach(r => {
+        totalVolume += r.volume; totalMass += r.mass;
+        const resultValue = isHeightMode ? round(r.volume) : `${round(r.height)} / ${tankHeightInput.value}`;
+        tableHTML += `<tr><td>${r.tankName}</td><td>${resultValue}</td><td>${round(r.fillPct, 1)}%</td><td>${round(r.mass)}</td></tr>`;
+    });
+    
+    tableHTML += `</tbody><tfoot><tr><td><strong>TOTAL</strong></td><td><strong>${round(totalVolume)}</strong></td><td>-</td><td><strong>${round(totalMass)}</strong></td></tr></tfoot></table>`;
+    resultArea.innerHTML = tableHTML;
 }
 
-document.getElementById('calc').addEventListener('click',calc);
+function updateStowageViz(results) {
+    stowagePlanViz.innerHTML = '';
+    results.forEach(r => {
+        const tankDiv = document.createElement('div');
+        tankDiv.className = 'stowage-tank';
+        tankDiv.innerHTML = `<div class="stowage-liquid" style="height:${r.fillPct}%"></div><span class="stowage-label">${r.tankName}</span><span class="stowage-info">${round(r.volume)} m³</span>`;
+        stowagePlanViz.appendChild(tankDiv);
+    });
+}
+
+// --- INITIALIZE ---
+numberOfTanksInput.addEventListener('input', generateTankInputs);
+modeRadios.forEach(radio => radio.addEventListener('change', generateTankInputs));
+document.addEventListener('DOMContentLoaded', () => {
+    generateTankInputs();
+    tplInput.value = 15000;
+    estimateBtn.click();
+});
 </script>
 </body>
 </html>
