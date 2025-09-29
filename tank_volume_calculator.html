@@ -39,6 +39,49 @@
     td {font-size:13px;}
     tfoot tr {font-weight:bold;}
     tfoot td {background-color:rgba(6,182,212,0.1);}
+
+    /* Responsive adjustments to prevent scrolling */
+    @media (max-width: 900px), (max-height: 850px) {
+        body {
+            padding: 8px;
+            align-items: flex-start; /* Align to top on smaller screens */
+        }
+        .card {
+            padding: 10px;
+            /* No internal scrolling, content must fit */
+        }
+        h1 { font-size: 18px; margin-bottom: 8px; }
+        h2 { font-size: 16px; margin-bottom: 8px; margin-top: 12px; }
+        .row { flex-direction: column; gap: 4px; }
+        input, select, button { padding: 8px; margin-bottom: 8px; }
+        .note { padding: 8px; margin-bottom: 10px; font-size: 12px; }
+    }
+
+    @media (max-width: 480px) {
+        body { padding: 4px; }
+        .card { padding: 8px; }
+        h1 { font-size: 16px; }
+        h2 { font-size: 14px; }
+        .note { font-size: 11px; padding: 6px; }
+        input, select, button { padding: 6px; font-size: 12px; margin-bottom: 6px; }
+        #tankInputsContainer { grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 6px; }
+        .stowage-tank { height: 80px; }
+        th, td { padding: 4px 6px; font-size: 11px; }
+        .output { padding: 8px; }
+    }
+
+    /* Styles for very short screens (landscape phones) */
+    @media (max-height: 500px) {
+        body { flex-direction: row; align-items: flex-start; gap: 10px; }
+        .card { flex: 1; } /* Allow card to take space */
+        .note, .mode-selector { margin-bottom: 6px; padding: 4px; }
+        h1, h2 { margin-bottom: 4px; padding-bottom: 2px; }
+        .row { gap: 2px; }
+        .col { margin-bottom: 2px; }
+        input, select, button { margin-bottom: 4px; }
+        #stowagePlanViz { min-height: 100px; }
+        .output { margin-top: 6px; }
+    }
   </style>
 </head>
 <body>
